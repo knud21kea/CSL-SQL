@@ -4,11 +4,16 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Main
 {
+
+    static Statement stmt;
+    static String sqlString;
+    static Connection con;
 
     //Reads contents of a csv file
     //Outputs SQL to create a DB table to ddl.sql
@@ -27,7 +32,77 @@ public class Main
         listOfDataLines.remove(0); // Remove column names from data
         writeDdl(); // Write DDL SQL to create db to ddl.sql
         writeDml(); // Write DML SQL to update db to dml.sql
+        updateDB(); //Updates db table with csv data
     }
+
+    private static void updateDB()
+    {
+        connectDB();
+        try
+        {
+            stmt = con.createStatement();
+            stmt.executeUpdate("DROP TABLE `new_table_from_csv`");
+        }
+        catch (Exception e)
+        {
+            System.out.println(e);
+            System.out.println("No existing table to delete");
+        }
+
+        try
+        {
+            //Create a table in the database
+            sqlString = "CREATE TABLE `new_table_from_csv` ( " +
+                    "`Year` INT NULL," +
+                    "`Length` INT NULL," +
+                    "`Title` VARCHAR(128) NULL," +
+                    "`Subject` VARCHAR(20) NULL," +
+                    "`Popularity` INT NULL," +
+                    "`Awards` VARCHAR(4) NULL)";
+
+            stmt.executeUpdate(sqlString);
+
+            Scanner scanner = new Scanner(new File("src/imdb-data.csv"));
+            scanner.useDelimiter(";|\n");
+            String title, subject, awards;
+            int year, length, popularity;
+            scanner.nextLine();
+            while(scanner.hasNextLine())
+            {
+                year = scanner.nextInt();
+                length = scanner.nextInt();
+                title = scanner.next();
+                subject = scanner.next();
+                popularity = scanner.nextInt();
+                awards = scanner.next();
+                sqlString = "INSERT INTO new_table_from_csv (`Year`,`Length`,`Title`,`Subject`,`Popularity`,`Awards`) VALUES(?,?,?,?,?,?)";
+                PreparedStatement statement = con.prepareStatement(sqlString);
+                statement.setInt(1,year);
+                statement.setInt(2,length);
+                statement.setString(3,title);
+                statement.setString(4,subject);
+                statement.setInt(5,popularity);
+                statement.setString(6,awards);
+                statement.executeUpdate();
+            }
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+    }public static void connectDB()
+{
+    try
+    {
+        String url = "jdbc:mysql://localhost:3306/movies_db";
+        con = DriverManager.getConnection(url,"root","ekch22Lmysql");
+        System.out.println("Ok, we have a connection.");
+    }
+    catch(Exception e)
+    {
+        e.printStackTrace();
+    }
+}
 
     public static void loadFile()
     {
